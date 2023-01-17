@@ -2,13 +2,13 @@
 """list all doc nosql"""
 
 
-from pprint import pprint
+import pymongo
 
 
 def list_all(mongo_collection):
     """return empty if not doc"""
     school = mongo_collection.find()
-    if school.count() == 0:
+    if not mongo_collection:
         return []
     for doc in school:
         return [doc]
