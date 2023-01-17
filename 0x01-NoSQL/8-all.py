@@ -12,4 +12,3 @@ def list_all(mongo_collection):
         return []
     for doc in school:
         return [doc]
-
