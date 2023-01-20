@@ -10,10 +10,10 @@ count = 0
 
 def get_page(url: str) -> str:
     """exipring cache"""
-    r_count.set(f"count:{url}", count)
+    r_count.set(f"exp:{url}", count)
     response = requests.get(url)
     r.incr(f"count:{url}")
-    r.setex(f"count:{url}", 10, r.get(f"count:{url}"))
+    r.setex(f"exp:{url}", 10, r.get(f"exp:{url}"))
     return response.text
 
 
