@@ -5,6 +5,52 @@
 import redis
 from typing import Union, Callable
 from uuid import uuid4
+from functools import wraps
+
+
+def call_history(method: Callable) -> Callable:
+    """Calls a method history"""
+    qualified_name = method.__qualname__
+    input_key = qualified_name + ":inputs"
+    output_key = qualified_name + ":outputs"
+
+    @wraps(method)
+    def wrapper(self, *args, **kwds):
+        """Stores the data in a redis db"""
+        self._redis.rpush(input_key, str(args))
+        data = method(self, *args, **kwds)
+        self._redis.rpush(output_key, str(data))
+        return data
+    return wrapper
+
+
+def count_calls(method: Callable) -> Callable:
+    """counts how many times methods of the Cache"""
+    key = method.__qualname__
+
+    @wraps(method)
+    def wrapper(self, *args, **kwds):
+        """increments the key"""
+        self._redis.incr(key)
+        return method(self, *args, **kwds)
+    return wrapper
+
+
+def replay(method: Callable) -> None:
+    """displays the history of calls"""
+    redis = method.__self__._redis
+    qualified_name = method.__qualname__
+    num_of_calls = redis.get(qualified_name).decode("utf-8")
+    print("{} was called {} times:".format(qualified_name, num_of_calls))
+    inp_key = qualified_name + ":inputs"
+    outp_key = qualified_name + ":outputs"
+    inp_list = redis.lrange(inp_key, 0, -1)
+    outp_list = redis.lrange(outp_key, 0, -1)
+    r_zipped = list(zip(inp_list, outp_list))
+    for key, value in r_zipped:
+        key = key.decode("utf-8")
+        value = value.decode("utf-8")
+        print("{}(*{}) -> {}".format(qualified_name, key, value))
 
 
 class Cache:
@@ -22,7 +68,7 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Callable= None):
+    def get(self, key: str, fn: Callable = None):
         """convert data for desired format"""
         call = self._redis.get(key)
         if fn is not None:
